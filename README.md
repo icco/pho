@@ -1,4 +1,4 @@
-# pu
+# pho
 
 Photo Uploader for https://photos.natwelch.com
 
