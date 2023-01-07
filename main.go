@@ -29,7 +29,7 @@ func (adt *AddHeaderTransport) RoundTrip(req *http.Request) (*http.Response, err
 	}
 
 	req.Header.Add("X-API-AUTH", adt.Key)
-	req.Header.Add("User-Agent", "etu/1.0")
+	req.Header.Add("User-Agent", "pho/1.0")
 
 	return adt.T.RoundTrip(req)
 }
