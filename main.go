@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
-
-	"github.com/gabriel-vasile/mimetype"
 )
 
 type uploadResponse struct {
@@ -52,29 +52,33 @@ func main() {
 
 func uploadFile(apikey, filePath string) (string, error) {
 	log.Printf("attempting upload of %q", filePath)
-	file, err := os.Open(filePath)
+	r, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("could not open file: %w", err)
 	}
-
-	var b []byte
-	if _, err := file.Read(b); err != nil {
-		return "", fmt.Errorf("could not read file: %w", err)
-	}
-
-	mimeType, err := mimetype.DetectFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("could not detect mime type: %w", err)
-	}
-	log.Printf("detected mime type %q", mimeType.String())
-
-	buf := bytes.NewBuffer(b)
+	defer r.Close()
 
 	client := &http.Client{
 		Transport: &AddHeaderTransport{T: http.DefaultTransport, Key: apikey},
 	}
 
-	resp, err := client.Post("https://graphql.natwelch.com/photo/new", mimeType.String(), buf)
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	key := "file"
+	fw, err := w.CreateFormFile(key, r.Name())
+	if err != nil {
+		return "", fmt.Errorf("could not create form file: %w", err)
+	}
+
+	if _, err := io.Copy(fw, r); err != nil {
+		return "", fmt.Errorf("could not copy file: %w", err)
+	}
+
+	if err := w.Close(); err != nil {
+		return "", fmt.Errorf("could not close writer: %w", err)
+	}
+
+	resp, err := client.Post("https://graphql.natwelch.com/photo/new", w.FormDataContentType(), &b)
 	if err != nil {
 		return "", fmt.Errorf("could not upload file: %w", err)
 	}
